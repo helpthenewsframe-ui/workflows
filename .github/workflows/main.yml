@@ -7,27 +7,37 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up JDK 17
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Change App Config (URL & Name)
+    - name: Inject User Configurations
       run: |
-        # Yahan script aapke java/res files mein URL aur Name badal degi
+        # App Name badalna strings.xml mein
+        sed -i "s/WebToAPKApp/${{ github.event.client_payload.name }}/g" app/src/main/res/values/strings.xml
+        
+        # URL badalna MainActivity.java mein
+        sed -i "s|HTTPS_TARGET_URL_PLACEHOLDER|${{ github.event.client_payload.url }}|g" app/src/main/java/com/example/webviewapp/MainActivity.java
+        
+        # Logos replace karna (Agar user ne logo upload kiya hai)
         echo "${{ github.event.client_payload.logo }}" | base64 -d > app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-        # (Is tarah se string replace karne ka command dynamic chalega)
+        echo "${{ github.event.client_payload.splash }}" | base64 -d > app/src/main/res/drawable/splash_logo.png
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
 
     - name: Build with Gradle
       run: ./gradlew assembleDebug
 
-    - name: Upload APK to Releases
-      uses: softprops/action-gh-release@v1
+    - name: Create Release and Upload APK
+      uses: softprops/action-gh-release@v2
       with:
+        tag_name: apk-v${{ github.run_number }}
+        name: Release v${{ github.run_number }}
         files: app/build/outputs/apk/debug/app-debug.apk
-        tag_name: v${{ github.run_number }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
