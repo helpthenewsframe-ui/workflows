@@ -1,0 +1,33 @@
+name: Build Android APK
+on:
+  repository_dispatch:
+    types: [build-apk]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Change App Config (URL & Name)
+      run: |
+        # Yahan script aapke java/res files mein URL aur Name badal degi
+        echo "${{ github.event.client_payload.logo }}" | base64 -d > app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+        # (Is tarah se string replace karne ka command dynamic chalega)
+
+    - name: Build with Gradle
+      run: ./gradlew assembleDebug
+
+    - name: Upload APK to Releases
+      uses: softprops/action-gh-release@v1
+      with:
+        files: app/build/outputs/apk/debug/app-debug.apk
+        tag_name: v${{ github.run_number }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
